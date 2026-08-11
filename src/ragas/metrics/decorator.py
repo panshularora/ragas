@@ -220,10 +220,12 @@ def create_metric_decorator():
                     try:
                         pydantic_model = self._create_pydantic_model()
                     except Exception as e:
-                        # Fallback if model creation fails
+                        # Fallback if model creation fails: still pass caller kwargs
+                        # through so the metric function is not invoked as func(**{}).
                         warnings.warn(
                             f"Could not create validation model: {e}", UserWarning
                         )
+                        self._validated_data = dict(kwargs)
                         return
 
                     # Warn about unknown arguments (but continue processing)
