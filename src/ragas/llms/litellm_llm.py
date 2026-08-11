@@ -191,28 +191,29 @@ class LiteLLMStructuredLLM(InstructorBaseRagasLLM):
             messages.append({"role": "system", "content": self.system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        # If client is async, use the appropriate method to run it
+        # If client is async, use the appropriate method to run it.
+        # agenerate() already tracks LLMUsageEvent — do not double-count here.
         if self.is_async:
-            result = self._run_async_in_current_loop(
+            return self._run_async_in_current_loop(
                 self.agenerate(prompt, response_model)
             )
-        else:
-            # Call LiteLLM with structured output
-            result = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                response_model=response_model,
-                **self.model_args,
-            )
 
-        # Track the usage
+        # Call LiteLLM with structured output
+        result = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            response_model=response_model,
+            **self.model_args,
+        )
+
+        # Track the usage (sync path only; async path tracks inside agenerate)
         track(
             LLMUsageEvent(
                 provider=self.provider,
                 model=self.model,
                 llm_type="litellm",
                 num_requests=1,
-                is_async=self.is_async,
+                is_async=False,
             )
         )
         return result
