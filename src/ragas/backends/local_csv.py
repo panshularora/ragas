@@ -86,10 +86,18 @@ class LocalCSVBackend(BaseBackend):
                 pass
             return
 
-        # Write data to CSV
+        # Write data to CSV. Union keys across all rows so optional fields on
+        # later rows (e.g. reason/error on experiment results) do not crash
+        # DictWriter (extrasaction="raise" by default).
         with open(file_path, "w", newline="", encoding="utf-8") as f:
-            fieldnames = data[0].keys()
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            fieldnames: list[str] = []
+            seen: set[str] = set()
+            for row in data:
+                for key in row.keys():
+                    if key not in seen:
+                        seen.add(key)
+                        fieldnames.append(key)
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             writer.writeheader()
             writer.writerows(data)
 
